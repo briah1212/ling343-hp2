@@ -65,7 +65,7 @@ The dataset was analyzed using R. Techniques included data cleaning, aggregation
 Import data for board game ratings and details.
 
 ```{r,warning=FALSE,message=FALSE}
-# Load necessary libraries
+# Load libraries
 library(readr)
 library(dplyr)
 library(tidyr)
@@ -76,7 +76,6 @@ library(tidyverse)
 library(knitr)
 library(stringr)
 
-# Or read in the data manually
 ratings <- readr::read_csv('ratings.csv')
 details <- readr::read_csv('details.csv')
 
@@ -87,24 +86,19 @@ details <- readr::read_csv('details.csv')
 Perform data cleaning: handle missing values, correct data types, and remove duplicates.
 
 ```{r}
-# Clean column names and adjust specific variables
 details <- details %>%
   clean_names()
   #rename_with(~ gsub("^boardgame", "", .), starts_with("boardgame"))
 
-# Check for missing values
 colSums(is.na(details))
 
-# Convert relevant columns to integer
 details <- details %>%
   mutate(across(c(yearpublished, minplayers, maxplayers, minage), as.integer))
 
-# Fill missing numerical values with 0 and character values with "Unknown"
 details <- details %>%
   mutate(across(where(is.numeric), ~ replace_na(., 0))) %>%
   mutate(across(where(is.character), ~ replace_na(., "Unknown")))
 
-# Merge datasets by 'num' or 'id'
 merged_data <- details %>%
   left_join(ratings %>% clean_names(), by = "num")
 ```
@@ -114,12 +108,10 @@ merged_data <- details %>%
 Let’s start by taking a broad look at the landscape of board games over time by examining the top 10 most popular games:
 
 ```{r}
-# Filter top 10 games
 top_10_games <- ratings %>%
   filter(!is.na(year) & rank <= 10) %>%
   arrange(rank)
 
-# Plot
 ggplot(top_10_games, aes(x = year, y = rank, label = name)) +
   geom_point(color = "blue") +
   geom_text(size = 3, vjust = -0.5) +
@@ -133,13 +125,12 @@ ggplot(top_10_games, aes(x = year, y = rank, label = name)) +
 Rather than a comprehensive analysis, lets establish a focus and first identify the most common category of board games.
 
 ```{r}
-# Count the most frequent categories
+
 category_counts <- merged_data %>%
   filter(boardgamecategory != "Unknown") %>%
   separate_rows(boardgamecategory, sep = ",") %>%
   count(boardgamecategory, sort = TRUE)
 
-# Plot the top 10 categories
 ggplot(category_counts[1:10, ], aes(x = reorder(boardgamecategory, n), y = n)) +
   geom_bar(stat = "identity", fill = "steelblue") +
   coord_flip() +
@@ -148,8 +139,6 @@ ggplot(category_counts[1:10, ], aes(x = reorder(boardgamecategory, n), y = n)) +
        y = "Frequency") +
   theme_minimal()
 
-
-# Analyze the most common category
 most_common_category <- details %>%
   separate_rows(boardgamecategory, sep = ", ") %>%
   group_by(boardgamecategory) %>%
@@ -165,24 +154,21 @@ From this, we see that Card Games are by far the most popular board games when c
 To analyze how the average ratings for card games have evolved over time, we limit the data set to games published from 1990 onward.
 
 ```{r}
-# Filter for card games published from 1990 onward
+
 card_games <- details %>%
   filter(
     grepl("Card Game", boardgamecategory) & 
     yearpublished >= 1990
   )
 
-# Join with ratings data
 card_games_data <- card_games %>%
   left_join(ratings %>% clean_names(), by = "num")
 
-# Group by year and calculate average ratings
 card_games_trends <- card_games_data %>%
   filter(!is.na(average)) %>%
   group_by(yearpublished) %>%
   summarize(avg_rating = mean(average, na.rm = TRUE))
 
-# Plot ratings over time
 ggplot(card_games_trends, aes(x = yearpublished, y = avg_rating)) +
   geom_line(color = "blue", linewidth = 1) +
   geom_point(color = "darkblue", size = 2) +
@@ -194,10 +180,10 @@ ggplot(card_games_trends, aes(x = yearpublished, y = avg_rating)) +
 
 ```
 
-We see in recent years, there has been a significant decline in the popularity of card games. This downward trend suggests a shift in entertainment preferences, as card games seem to be losing their appeal compared to other forms of games.
+We see in recent years, there has been a significant decline in the popularity of card games. This downward trend suggests a shift in entertainment preferences, as card games seem to be losing their appeal compared to other forms of games. Despite the decrease in overall popularity, certain game mechanics still stand out in terms of user ratings and engagement. Let's take a closer look at the mechanics that define high-rated card games, as these reflect the qualities that continue to attract dedicated players. Analyze mechanics for card games:
 
 ```{r}
-# Analyze mechanics for card games
+
 card_mechanics <- card_games_data %>%
   separate_rows(boardgamemechanic, sep = ", ") %>%
   group_by(boardgamemechanic) %>%
@@ -206,6 +192,11 @@ card_mechanics <- card_games_data %>%
     count = n()
   ) %>%
   arrange(desc(avg_rating))
+```
+
+Filter mechanics with sufficient representation and show them
+
+```{r}
 
 # Filter mechanics with sufficient representation
 top_mechanics <- card_mechanics %>%
@@ -214,32 +205,6 @@ top_mechanics <- card_mechanics %>%
 
 # View top mechanics
 kable(head(top_mechanics))
-```
-
-It seems that the highest-rated mechanics in card games often involve nuanced player interactions or innovative strategic elements. For example
-
--   Turn Order: Role Order (7.50) and *Traitor Game* (7.49) emphasize dynamic social roles and hidden information, adding depth to gameplay.
--   Melding and Splaying (7.30) (<https://boardgamegeek.com/boardgamemechanic/2981/melding-and-splaying>) and *Layering* (7.18), both having high counts, introduce unique ways of managing cards, offering new strategic opportunities
-
-```{r}
-# Analyze mechanics across all games
-all_mechanics <- details %>%
-  separate_rows(boardgamemechanic, sep = ", ") %>%
-  left_join(ratings %>% clean_names(), by = "num") %>%
-  group_by(boardgamemechanic) %>%
-  summarize(
-    avg_rating = mean(average, na.rm = TRUE),
-    count = n()
-  ) %>%
-  arrange(desc(avg_rating))
-
-# Filter mechanics with sufficient representation
-top_all_mechanics <- all_mechanics %>%
-  filter(count >= 10) %>%
-  arrange(desc(avg_rating))
-
-# View top mechanics
-kable(head(top_all_mechanics))
 ```
 
 Meanwhile, in highly-rated mechanics across all board games, mechanics that emphasize **resource management** and **economic systems** are prevalent, such as:
@@ -252,19 +217,15 @@ Meanwhile, in highly-rated mechanics across all board games, mechanics that emph
 -   *Bribery* (7.41) and *Turn Order: Pass Order* (7.38), which incorporate negotiation and decision-making under constraints.
 
 ```{r}
-# Analyze word frequency in card game descriptions
-# Extract and tokenize descriptions specifically for card games
 card_game_descriptions <- card_games_data %>%
   filter(description != "Unknown") %>%
   select(description)
 
-# Tokenize words and calculate frequency
 word_frequency <- card_game_descriptions %>%
   unnest_tokens(word, description) %>%
-  filter(!word %in% stop_words$word) %>% # Remove common stop words
+  filter(!word %in% stop_words$word) %>% 
   count(word, sort = TRUE)
 
-# Visualize the word frequency as a bar plot
 ggplot(word_frequency %>% slice_head(n = 20), aes(x = reorder(word, n), y = n)) +
   geom_bar(stat = "identity", fill = "lightblue") +
   coord_flip() +
@@ -272,30 +233,26 @@ ggplot(word_frequency %>% slice_head(n = 20), aes(x = reorder(word, n), y = n)) 
     title = "Most Common Words in Card Game Descriptions",
     x = "Word",
     y = "Frequency"
-  ) +
-  theme_minimal()
+  )
 
 ```
 
-it seems that the top word is just a 10, which doesn't really show anything. lets look for bigrams and remove double numbers form the commonwords
+It appears that the most common word is simply "10," which doesn't provide much insight. Let's focus on identifying meaningful bigrams and filter out any instances of repeated numbers from the list of common words.
 
 ```{r}
-# Analyze themes using bigram analysis, filtering out numeric values
-# Tokenize the descriptions into bigrams
+
 card_game_bigrams <- card_game_descriptions %>%
   unnest_tokens(bigram, description, token = "ngrams", n = 2) 
 
-# Separate bigrams into two words for further processing
 separated_bigrams <- card_game_bigrams %>%
   separate(bigram, into = c("word1", "word2"), sep = " ") %>%
   filter(
     !word1 %in% stop_words$word, 
     !word2 %in% stop_words$word,
-    !str_detect(word1, "^\\d+$"), # Remove word1 if it is purely numeric
-    !str_detect(word2, "^\\d+$")  # Remove word2 if it is purely numeric
+    !str_detect(word1, "^\\d+$"), 
+    !str_detect(word2, "^\\d+$") 
   )
 
-# Recombine words into cleaned bigrams and calculate frequency
 bigram_frequency <- separated_bigrams %>%
   unite(bigram, word1, word2, sep = " ") %>%
   count(bigram, sort = TRUE)

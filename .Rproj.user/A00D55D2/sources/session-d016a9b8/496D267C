@@ -3,7 +3,7 @@
     "path": "~/Code/ling343/ling343-hp2/hp2.qmd",
     "project_path": "hp2.qmd",
     "type": "quarto_markdown",
-    "hash": "3252897562",
+    "hash": "0",
     "contents": "",
     "dirty": false,
     "created": 1733410366178.0,
@@ -15,18 +15,18 @@
         "tempName": "Untitled1",
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "314,0",
-        "scrollLine": "225",
+        "cursorPosition": "198,0",
+        "scrollLine": "244",
         "docOutlineVisible": "1",
         "rmdVisualCollapsedChunks": "",
-        "rmdVisualModeLocation": "12877:8413.888671875"
+        "rmdVisualModeLocation": "7870:7100.5556640625"
     },
     "folds": "",
-    "lastKnownWriteTime": 1734324596,
+    "lastKnownWriteTime": 1734325109,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1734324596882,
+    "last_content_update": 1734325109641,
     "read_only": false,
     "read_only_alternatives": []
 }
