@@ -1,0 +1,185 @@
+---
+title: "HP2: Board Games"
+author: "Brian Hsu"
+format: html
+editor: visual
+---
+
+# Introduction
+
+## Objective
+
+Explore the patterns in board game design, ratings, and user preferences using the BoardGameGeek dataset. The study focuses on game specifications, player count, and publication trends, aiming to derive insights into factors contributing to game popularity.
+
+## Methods
+
+The dataset was analyzed using R. Techniques included data cleaning, aggregation, and visualization to explore trends in game characteristics and ratings.
+
+# Data Dictionary
+
+## ratings.csv
+
+| variable      | class     | description                                                            |
+|-------------|-------------|-----------------------------------------------|
+| num           | double    | A unique identifier for each game within the dataset.                  |
+| id            | double    | The BoardGameGeek ID for the game, used for linking to other datasets. |
+| name          | character | The official name of the board game, as listed on BoardGameGeek.       |
+| year          | double    | The year the game was first published or made available to the public. |
+| rank          | double    | The global rank of the game based on user ratings.                     |
+| average       | double    | The average user rating for the game.                                  |
+| bayes_average | double    | A Bayesian-adjusted average rating.                                    |
+| users_rated   | double    | The total number of users who have rated the game.                     |
+| url           | character | The URL to the game’s page on BoardGameGeek.                           |
+| thumbnail     | character | A URL to a thumbnail image of the game.                                |
+
+## details.csv
+
+| variable                | class     | description                                                           |
+|--------------|--------------|-------------------------------------------|
+| num                     | double    | A unique identifier for each game within the dataset.                 |
+| id                      | double    | The BoardGameGeek ID for the game.                                    |
+| primary                 | character | The primary or most common name of the game.                          |
+| description             | character | A detailed textual description of the game.                           |
+| yearpublished           | double    | The year the game was officially published.                           |
+| minplayers              | double    | The minimum number of players required to play the game.              |
+| maxplayers              | double    | The maximum number of players that the game can accommodate.          |
+| playingtime             | double    | The estimated total time needed to complete a game session.           |
+| minplaytime             | double    | The shortest estimated time required to complete a game session.      |
+| maxplaytime             | double    | The longest estimated time required to complete a game session.       |
+| minage                  | double    | The minimum recommended age for players.                              |
+| boardgamecategory       | character | A categorical label describing the theme or genre of the game.        |
+| boardgamemechanic       | character | A textual description of the gameplay mechanics.                      |
+| boardgamefamily         | character | A classification grouping games into families.                        |
+| boardgameexpansion      | character | A list of expansions or add-ons related to the game.                  |
+| boardgameimplementation | character | A description of specific implementations or adaptations of the game. |
+| boardgamedesigner       | character | The name(s) of the game’s designer(s).                                |
+| boardgameartist         | character | The name(s) of the artist(s).                                         |
+| boardgamepublisher      | character | The name of the publishing company.                                   |
+| owned                   | double    | The number of users who marked the game as owned.                     |
+| trading                 | double    | The number of users who listed the game as available for trade.       |
+| wanting                 | double    | The number of users who expressed a desire to own the game.           |
+| wishing                 | double    | The number of users who added the game to their wish list.            |
+
+# Data Import and Cleaning
+
+## Import data for board game ratings and details
+
+```{r, warning=FALSE, message=FALSE}
+# Load necessary libraries
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(janitor)
+library(tidytext)
+
+# Import datasets
+ratings <- read_csv('ratings.csv')
+details <- read_csv('details.csv')
+
+# Basic summaries
+summary(ratings)
+summary(details)
+```
+
+## Perform data cleaning: handle missing values, correct data types, and remove duplicates
+
+```{r}
+# Clean column names and adjust specific variables
+details <- details %>%
+  clean_names()
+
+# Check for missing values
+colSums(is.na(details))
+
+# Convert relevant columns to integer
+details <- details %>%
+  mutate(across(c(yearpublished, minplayers, maxplayers, minage), as.integer))
+
+# Fill missing numerical values with 0 and character values with "Unknown"
+details <- details %>%
+  mutate(across(where(is.numeric), ~ replace_na(., 0))) %>%
+  mutate(across(where(is.character), ~ replace_na(., "Unknown")))
+
+# Merge datasets by 'num' or 'id'
+merged_data <- details %>%
+  left_join(ratings %>% clean_names(), by = "num")
+
+# Preview the cleaned details dataset
+head(merged_data)
+```
+
+# Data Exploration
+
+## Exploring a Specific Game Category
+
+Let’s analyze how games in the **Strategy** category differ from those in other categories in terms of mechanics, player count, and popularity. Additionally, we’ll examine the descriptions of Strategy games to identify patterns in word usage and their correlation with popularity.
+
+### Popularity and Mechanics of Strategy Games
+
+```{r}
+# Filter for Strategy games
+strategy_games <- merged_data %>%
+  filter(str_detect(boardgamecategory, "Strategy"))
+
+# Compare average ratings and user counts across categories
+category_summary <- merged_data %>%
+  group_by(boardgamecategory) %>%
+  summarize(
+    avg_rating = mean(average, na.rm = TRUE),
+    avg_users = mean(users_rated, na.rm = TRUE)
+  ) %>%
+  arrange(desc(avg_rating))
+
+# Plot
+ggplot(category_summary, aes(x = reorder(boardgamecategory, avg_rating), y = avg_rating)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Average Ratings by Category", x = "Category", y = "Average Rating") +
+  theme_minimal()
+```
+
+### Common Words in Strategy Game Descriptions
+
+```{r}
+# Tokenize and count words in descriptions of Strategy games
+strategy_words <- strategy_games %>%
+  unnest_tokens(word, description) %>%
+  anti_join(stop_words, by = "word") %>%
+  count(word, sort = TRUE)
+
+# Top 10 words
+ggplot(strategy_words[1:10, ], aes(x = reorder(word, n), y = n)) +
+  geom_bar(stat = "identity", fill = "darkgreen") +
+  coord_flip() +
+  labs(title = "Top Words in Strategy Game Descriptions", x = "Word", y = "Frequency") +
+  theme_minimal()
+```
+
+### TF-IDF Analysis of Game Descriptions
+
+```{r}
+# TF-IDF calculation
+category_words <- merged_data %>%
+  unnest_tokens(word, description) %>%
+  anti_join(stop_words, by = "word") %>%
+  count(boardgamecategory, word, sort = TRUE) %>%
+  bind_tf_idf(word, boardgamecategory, n)
+
+# Top words by TF-IDF for Strategy games
+strategy_tfidf <- category_words %>%
+  filter(boardgamecategory == "Strategy") %>%
+  arrange(desc(tf_idf)) %>%
+  slice_head(n = 10)
+
+# Plot
+ggplot(strategy_tfidf, aes(x = reorder(word, tf_idf), y = tf_idf)) +
+  geom_bar(stat = "identity", fill = "purple") +
+  coord_flip() +
+  labs(title = "Top TF-IDF Words in Strategy Game Descriptions", x = "Word", y = "TF-IDF") +
+  theme_minimal()
+```
+
+# Conclusion
+
+Strategy games exhibit distinct mechanics, tend to have higher user engagement, and feature specific descriptive terms. TF-IDF analysis highlights unique thematic elements that may contribute to their appeal. Further analysis could explore the sentiment of descriptions and user reviews.

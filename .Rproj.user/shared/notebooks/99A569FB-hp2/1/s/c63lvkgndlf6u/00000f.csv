@@ -1,0 +1,16 @@
+"0","mechanics <- details %>%
+  filter(average > 8 & !is.na(boardgamemechanic)) %>%
+  count(boardgamemechanic, sort = TRUE)
+"
+"1","[1m[33mError[39m in `filter()`:[22m
+[38;5;254m[36mℹ[38;5;254m In argument: `average > 8 & !is.na(boardgamemechanic)`.[39m
+[1mCaused by error:[22m
+[33m![39m object 'average' not found
+Backtrace:
+[90m 1. [39m... %>% count(boardgamemechanic, sort = TRUE)
+[90m 4. [39m[1m[94mdplyr:::filter.data.frame([39m[22m., average > 8 & !is.na(boardgamemechanic)[1m[94m)[39m[22m
+[90m 5. [39mdplyr:::filter_rows(.data, dots, by)
+[90m 6. [39mdplyr:::filter_eval(...)
+[90m 8. [39mmask$eval_all_filter(dots, env_filter)
+[90m 9. [39m[1mdplyr[22m (local) eval()
+"
